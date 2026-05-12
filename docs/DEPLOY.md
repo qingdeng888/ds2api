@@ -130,8 +130,14 @@ docker-compose logs -f
 ```
 
 默认 `docker-compose.yml` 直接使用 `ghcr.io/cjackhwang/ds2api:latest`，并把宿主机 `6011` 映射到容器内的 `5001`。如果你希望直接对外暴露 `5001`，请设置 `DS2API_HOST_PORT=5001`（或者手动调整 `ports` 配置）。
-Compose 模板还会默认设置 `DS2API_CONFIG_PATH=/data/config.json` 并挂载 `./config.json:/data/config.json`，优先避免 `/app` 只读带来的配置持久化问题。
-镜像内会预创建 `/data` 并授权给非 root 的 `ds2api` 用户；如果你使用 bind mount 单文件，请确保宿主机 `config.json` 至少可被容器用户读取/写入，例如 `chmod 644 config.json`，否则 Linux UID/GID 不一致时仍可能出现 `open /data/config.json: permission denied`。
+Compose 模板还会默认设置 `DS2API_CONFIG_PATH=/data/config.json`，并把宿主机 `./data` 目录整体挂载到容器 `/data`（而不是 bind-mount 单个 `config.json` 文件）。挂载目录可以让容器内的非 root `ds2api` 用户在 `/data` 下原子写入 `config.json`，避免因为单文件挂载权限不足导致的“管理台**删除账号失败、账号总数不变**”问题。
+首次启动前先在宿主机准备目录和权限：
+```bash
+mkdir -p ./data
+[ -f ./config.json ] && cp ./config.json ./data/config.json
+# 让容器内的非 root ds2api 用户能写入（镜像里默认 uid:gid = 999:999）
+sudo chown -R 999:999 ./data
+```
 兼容说明：若未设置 `DS2API_CONFIG_PATH` 且运行目录是 `/app`，新版本会优先使用 `/data/config.json`；当该文件不存在但检测到历史 `/app/config.json` 时，会自动回退读取旧路径，避免升级后“配置丢失”。
 
 如需固定版本，也可以直接拉取指定 tag：

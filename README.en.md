@@ -248,7 +248,16 @@ docker-compose up -d
 ```
 
 The default `docker-compose.yml` uses `ghcr.io/cjackhwang/ds2api:latest` and maps host port `6011` to container port `5001`. If you want `5001` exposed directly, set `DS2API_HOST_PORT=5001` (or adjust the `ports` mapping).
-It also mounts `./config.json` to `/data/config.json` and sets `DS2API_CONFIG_PATH=/data/config.json` by default, which avoids runtime token persistence failures caused by read-only `/app`.
+It also bind-mounts the host `./data` directory to `/data` and sets `DS2API_CONFIG_PATH=/data/config.json`. Mounting a directory (rather than a single file) avoids permission issues that surface as **failed account deletes / account totals that never change** when the container's non-root `ds2api` user has no write permission on a host-owned single file.
+
+Before the first boot, prepare the host directory and ownership:
+```bash
+mkdir -p ./data
+# If you already have a config.json, move it into the data directory
+[ -f ./config.json ] && cp ./config.json ./data/config.json
+# Grant write access to the non-root ds2api user inside the image (uid defaults to 999)
+sudo chown -R 999:999 ./data
+```
 
 Rebuild after updates: `docker-compose up -d --build`
 
