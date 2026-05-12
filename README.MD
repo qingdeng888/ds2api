@@ -259,8 +259,15 @@ docker-compose logs -f
 ```
 
 默认 `docker-compose.yml` 会把宿主机 `6011` 映射到容器内的 `5001`。如果你希望直接对外暴露 `5001`，请设置 `DS2API_HOST_PORT=5001`（或者手动调整 `ports` 配置）。
-同时默认把 `./config.json` 挂载到容器 `/data/config.json`，并设置 `DS2API_CONFIG_PATH=/data/config.json`，用于避免 `/app` 只读导致运行时 token 持久化失败。
-镜像会预创建 `/data` 并授权给非 root 的 `ds2api` 用户；如果使用单文件 bind mount，请确保宿主机 `config.json` 对容器用户可读写，例如 `chmod 644 config.json`。
+同时默认把宿主机 `./data` 目录挂载到容器 `/data`，并设置 `DS2API_CONFIG_PATH=/data/config.json`，避免单文件 bind-mount 在非 root 用户下的写权限问题（典型表现：管理台里**删除账号失败、账号总数不变**）。
+首次启动前先在宿主机准备好目录与权限：
+```bash
+mkdir -p ./data
+# 如果你已经有 config.json，把它放到 data 目录里
+[ -f ./config.json ] && cp ./config.json ./data/config.json
+# 让容器内的非 root ds2api 用户能写入（镜像里 ds2api 用户的 uid 默认是 999）
+sudo chown -R 999:999 ./data
+```
 
 更新镜像：`docker-compose up -d --build`
 
