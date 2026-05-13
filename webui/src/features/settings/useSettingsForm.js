@@ -12,7 +12,21 @@ const MAX_AUTO_FETCH_FAILURES = 3
 
 const DEFAULT_FORM = {
     admin: { jwt_expire_hours: 24 },
-    runtime: { account_max_inflight: 2, account_max_queue: 10, global_max_inflight: 10, token_refresh_interval_hours: 6 },
+    runtime: {
+        account_max_inflight: 2,
+        account_max_queue: 10,
+        global_max_inflight: 10,
+        token_refresh_interval_hours: 6,
+        account_health_enabled: true,
+        account_health_recovery_window_seconds: 300,
+        account_health_max_cooldown_seconds: 1800,
+        account_health_cooldown_429_seconds: 30,
+        account_health_cooldown_403_seconds: 60,
+        account_health_cooldown_auth_seconds: 120,
+        account_health_cooldown_5xx_seconds: 10,
+        account_health_cooldown_network_seconds: 5,
+        account_health_cooldown_empty_seconds: 0,
+    },
     responses: { store_ttl_seconds: 900 },
     embeddings: { provider: '' },
     auto_delete: { mode: 'none' },
@@ -51,13 +65,28 @@ function normalizeAutoDeleteMode(raw) {
 
 function fromServerForm(data) {
     const currentInputFileEnabled = data.current_input_file?.enabled ?? true
+    const runtime = data.runtime || {}
     return {
         admin: { jwt_expire_hours: Number(data.admin?.jwt_expire_hours || 24) },
         runtime: {
-            account_max_inflight: Number(data.runtime?.account_max_inflight || 2),
-            account_max_queue: Number(data.runtime?.account_max_queue || 10),
-            global_max_inflight: Number(data.runtime?.global_max_inflight || 10),
-            token_refresh_interval_hours: Number(data.runtime?.token_refresh_interval_hours || 6),
+            account_max_inflight: Number(runtime.account_max_inflight || 2),
+            account_max_queue: Number(runtime.account_max_queue || 10),
+            global_max_inflight: Number(runtime.global_max_inflight || 10),
+            token_refresh_interval_hours: Number(runtime.token_refresh_interval_hours || 6),
+            // Health knobs default to the in-code constants when absent
+            // from the server payload (older backends or fields the
+            // operator never touched). Keeping the same fallbacks the
+            // backend uses avoids surprising "0 for everything" UX.
+            account_health_enabled: runtime.account_health_enabled ?? true,
+            account_health_recovery_window_seconds: Number(runtime.account_health_recovery_window_seconds || 300),
+            account_health_max_cooldown_seconds: Number(runtime.account_health_max_cooldown_seconds || 1800),
+            account_health_cooldown_429_seconds: Number(runtime.account_health_cooldown_429_seconds || 30),
+            account_health_cooldown_403_seconds: Number(runtime.account_health_cooldown_403_seconds || 60),
+            account_health_cooldown_auth_seconds: Number(runtime.account_health_cooldown_auth_seconds || 120),
+            account_health_cooldown_5xx_seconds: Number(runtime.account_health_cooldown_5xx_seconds || 10),
+            account_health_cooldown_network_seconds: Number(runtime.account_health_cooldown_network_seconds || 5),
+            // Empty cooldown is the only one that can legitimately be 0.
+            account_health_cooldown_empty_seconds: Number(runtime.account_health_cooldown_empty_seconds ?? 0),
         },
         responses: {
             store_ttl_seconds: Number(data.responses?.store_ttl_seconds || 900),
@@ -83,13 +112,23 @@ function fromServerForm(data) {
 
 function toServerPayload(form) {
     const currentInputFileEnabled = Boolean(form.current_input_file?.enabled)
+    const runtime = form.runtime || {}
     return {
         admin: { jwt_expire_hours: Number(form.admin.jwt_expire_hours) },
         runtime: {
-            account_max_inflight: Number(form.runtime.account_max_inflight),
-            account_max_queue: Number(form.runtime.account_max_queue),
-            global_max_inflight: Number(form.runtime.global_max_inflight),
-            token_refresh_interval_hours: Number(form.runtime.token_refresh_interval_hours),
+            account_max_inflight: Number(runtime.account_max_inflight),
+            account_max_queue: Number(runtime.account_max_queue),
+            global_max_inflight: Number(runtime.global_max_inflight),
+            token_refresh_interval_hours: Number(runtime.token_refresh_interval_hours),
+            account_health_enabled: Boolean(runtime.account_health_enabled ?? true),
+            account_health_recovery_window_seconds: Number(runtime.account_health_recovery_window_seconds || 300),
+            account_health_max_cooldown_seconds: Number(runtime.account_health_max_cooldown_seconds || 1800),
+            account_health_cooldown_429_seconds: Number(runtime.account_health_cooldown_429_seconds || 30),
+            account_health_cooldown_403_seconds: Number(runtime.account_health_cooldown_403_seconds || 60),
+            account_health_cooldown_auth_seconds: Number(runtime.account_health_cooldown_auth_seconds || 120),
+            account_health_cooldown_5xx_seconds: Number(runtime.account_health_cooldown_5xx_seconds || 10),
+            account_health_cooldown_network_seconds: Number(runtime.account_health_cooldown_network_seconds || 5),
+            account_health_cooldown_empty_seconds: Number(runtime.account_health_cooldown_empty_seconds ?? 0),
         },
         responses: { store_ttl_seconds: Number(form.responses.store_ttl_seconds) },
         embeddings: { provider: String(form.embeddings.provider || '').trim() },

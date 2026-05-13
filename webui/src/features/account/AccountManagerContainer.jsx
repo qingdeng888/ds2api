@@ -2,6 +2,7 @@ import { useI18n } from '../../i18n'
 import { useAccountsData } from './useAccountsData'
 import { useAccountActions } from './useAccountActions'
 import QueueCards from './QueueCards'
+import AccountHealth from './AccountHealth'
 import ApiKeysPanel from './ApiKeysPanel'
 import AccountsTable from './AccountsTable'
 import AddKeyModal from './AddKeyModal'
@@ -100,6 +101,8 @@ export default function AccountManagerContainer({ config, onRefresh, onMessage, 
             )}
 
             <QueueCards queueStatus={queueStatus} t={t} />
+
+            <AccountHealth queueStatus={queueStatus} t={t} />
 
             <ApiKeysPanel
                 t={t}
