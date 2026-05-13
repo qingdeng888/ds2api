@@ -11,7 +11,7 @@ services:
     volumes:
       # 挂载目录而不是单文件，便于容器以非 root 用户原子写入 /data/config.json。
       # 首次启动前请确保宿主机 ./data 目录存在，并且容器用户（uid:gid 默认为 ds2api 系统账号）有读写权限：
-      #   mkdir -p ./data && [ -f ./data/config.json ] || cp config.json ./data/config.json 2>/dev/null || true
+      #   mkdir -p ./data && [ -f ./data/config.json ] || cp config.example.json ./data/config.json 2>/dev/null || true
       #   sudo chown -R 999:999 ./data
       - ./data:/data   # 配置文件持久化目录
     environment:
