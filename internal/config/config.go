@@ -153,6 +153,21 @@ type RuntimeConfig struct {
 	AccountMaxQueue           int `json:"account_max_queue,omitempty"`
 	GlobalMaxInflight         int `json:"global_max_inflight,omitempty"`
 	TokenRefreshIntervalHours int `json:"token_refresh_interval_hours,omitempty"`
+
+	// Account health rotation (Phase 1: weighted P2C with failure-based
+	// cooldown). All fields are optional; zero / negative values fall back
+	// to the in-code defaults from internal/account.DefaultHealthConfig().
+	// AccountHealthEnabled is *bool so an explicit `false` from config can
+	// be distinguished from "field absent" (which keeps the default true).
+	AccountHealthEnabled                *bool `json:"account_health_enabled,omitempty"`
+	AccountHealthRecoveryWindowSeconds  int   `json:"account_health_recovery_window_seconds,omitempty"`
+	AccountHealthMaxCooldownSeconds     int   `json:"account_health_max_cooldown_seconds,omitempty"`
+	AccountHealthCooldown429Seconds     int   `json:"account_health_cooldown_429_seconds,omitempty"`
+	AccountHealthCooldown403Seconds     int   `json:"account_health_cooldown_403_seconds,omitempty"`
+	AccountHealthCooldownAuthSeconds    int   `json:"account_health_cooldown_auth_seconds,omitempty"`
+	AccountHealthCooldown5xxSeconds     int   `json:"account_health_cooldown_5xx_seconds,omitempty"`
+	AccountHealthCooldownNetworkSeconds int   `json:"account_health_cooldown_network_seconds,omitempty"`
+	AccountHealthCooldownEmptySeconds   int   `json:"account_health_cooldown_empty_seconds,omitempty"`
 }
 
 type ResponsesConfig struct {

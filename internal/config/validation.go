@@ -99,6 +99,35 @@ func ValidateRuntimeConfig(runtime RuntimeConfig) error {
 	if runtime.AccountMaxInflight > 0 && runtime.GlobalMaxInflight > 0 && runtime.GlobalMaxInflight < runtime.AccountMaxInflight {
 		return fmt.Errorf("runtime.global_max_inflight must be >= runtime.account_max_inflight")
 	}
+	// Account-health knobs: every duration field is optional (omit = default
+	// from internal/account.DefaultHealthConfig). When provided, enforce a
+	// generous but finite range so a misconfigured value cannot wedge the
+	// scheduler with a multi-day cooldown.
+	if err := ValidateIntRange("runtime.account_health_recovery_window_seconds", runtime.AccountHealthRecoveryWindowSeconds, 1, 86400, false); err != nil {
+		return err
+	}
+	if err := ValidateIntRange("runtime.account_health_max_cooldown_seconds", runtime.AccountHealthMaxCooldownSeconds, 1, 86400, false); err != nil {
+		return err
+	}
+	if err := ValidateIntRange("runtime.account_health_cooldown_429_seconds", runtime.AccountHealthCooldown429Seconds, 1, 86400, false); err != nil {
+		return err
+	}
+	if err := ValidateIntRange("runtime.account_health_cooldown_403_seconds", runtime.AccountHealthCooldown403Seconds, 1, 86400, false); err != nil {
+		return err
+	}
+	if err := ValidateIntRange("runtime.account_health_cooldown_auth_seconds", runtime.AccountHealthCooldownAuthSeconds, 1, 86400, false); err != nil {
+		return err
+	}
+	if err := ValidateIntRange("runtime.account_health_cooldown_5xx_seconds", runtime.AccountHealthCooldown5xxSeconds, 1, 86400, false); err != nil {
+		return err
+	}
+	if err := ValidateIntRange("runtime.account_health_cooldown_network_seconds", runtime.AccountHealthCooldownNetworkSeconds, 1, 86400, false); err != nil {
+		return err
+	}
+	// Empty is the only kind allowed to disable hard cooldown via 0.
+	if err := ValidateIntRange("runtime.account_health_cooldown_empty_seconds", runtime.AccountHealthCooldownEmptySeconds, 0, 86400, false); err != nil {
+		return err
+	}
 	return nil
 }
 

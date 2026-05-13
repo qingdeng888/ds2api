@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"ds2api/internal/account"
 	"ds2api/internal/assistantturn"
 	"ds2api/internal/auth"
 	"ds2api/internal/config"
@@ -202,7 +203,28 @@ func canRetryOnAlternateAccount(ctx context.Context, a *auth.RequestAuth, outErr
 		return false
 	}
 	*attempted = true
-	return a.SwitchAccount(ctx)
+	// Classify the upstream failure into a PenaltyKind so the pool can
+	// apply the right cooldown. canRetryOnAlternateAccount is only called
+	// for HTTP 429 today, but the helper keeps the mapping centralised so
+	// we can extend it (5xx, network) without re-touching every call site.
+	return a.SwitchAccountWithPenalty(ctx, penaltyKindForStatus(outErr.Status))
+}
+
+// penaltyKindForStatus maps an upstream HTTP status to the schedulers
+// PenaltyKind. The empty status (0) and any unknown code map to
+// PenaltyHTTP5xx, which is the most conservative non-zero cooldown.
+func penaltyKindForStatus(status int) account.PenaltyKind {
+	switch {
+	case status == http.StatusTooManyRequests:
+		return account.PenaltyHTTP429
+	case status == http.StatusForbidden:
+		return account.PenaltyHTTP403
+	case status == http.StatusUnauthorized:
+		return account.PenaltyAuthFailed
+	case status >= 500 && status < 600:
+		return account.PenaltyHTTP5xx
+	}
+	return account.PenaltyUnknown
 }
 
 func startStandardCompletionOnAlternateAccount(ctx context.Context, ds DeepSeekCaller, a *auth.RequestAuth, stdReq promptcompat.StandardRequest, opts Options, maxAttempts int) (StartResult, *assistantturn.OutputError) {

@@ -52,6 +52,33 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 			if runtimeCfg.TokenRefreshIntervalHours > 0 {
 				c.Runtime.TokenRefreshIntervalHours = runtimeCfg.TokenRefreshIntervalHours
 			}
+			if runtimeCfg.AccountHealthEnabled != nil {
+				c.Runtime.AccountHealthEnabled = runtimeCfg.AccountHealthEnabled
+			}
+			if runtimeCfg.AccountHealthRecoveryWindowSeconds > 0 {
+				c.Runtime.AccountHealthRecoveryWindowSeconds = runtimeCfg.AccountHealthRecoveryWindowSeconds
+			}
+			if runtimeCfg.AccountHealthMaxCooldownSeconds > 0 {
+				c.Runtime.AccountHealthMaxCooldownSeconds = runtimeCfg.AccountHealthMaxCooldownSeconds
+			}
+			if runtimeCfg.AccountHealthCooldown429Seconds > 0 {
+				c.Runtime.AccountHealthCooldown429Seconds = runtimeCfg.AccountHealthCooldown429Seconds
+			}
+			if runtimeCfg.AccountHealthCooldown403Seconds > 0 {
+				c.Runtime.AccountHealthCooldown403Seconds = runtimeCfg.AccountHealthCooldown403Seconds
+			}
+			if runtimeCfg.AccountHealthCooldownAuthSeconds > 0 {
+				c.Runtime.AccountHealthCooldownAuthSeconds = runtimeCfg.AccountHealthCooldownAuthSeconds
+			}
+			if runtimeCfg.AccountHealthCooldown5xxSeconds > 0 {
+				c.Runtime.AccountHealthCooldown5xxSeconds = runtimeCfg.AccountHealthCooldown5xxSeconds
+			}
+			if runtimeCfg.AccountHealthCooldownNetworkSeconds > 0 {
+				c.Runtime.AccountHealthCooldownNetworkSeconds = runtimeCfg.AccountHealthCooldownNetworkSeconds
+			}
+			if runtimeCfg.AccountHealthCooldownEmptySeconds >= 0 {
+				c.Runtime.AccountHealthCooldownEmptySeconds = runtimeCfg.AccountHealthCooldownEmptySeconds
+			}
 		}
 		if responsesCfg != nil && responsesCfg.StoreTTLSeconds > 0 {
 			c.Responses.StoreTTLSeconds = responsesCfg.StoreTTLSeconds

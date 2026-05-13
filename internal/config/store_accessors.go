@@ -141,6 +141,69 @@ func (s *Store) RuntimeTokenRefreshIntervalHours() int {
 	return 6
 }
 
+// AccountHealthEnabled reports whether the weighted P2C selection +
+// failure-based cooldown layer should be active. Default is true; an
+// explicit `false` in config disables it without removing the field.
+func (s *Store) AccountHealthEnabled() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.cfg.Runtime.AccountHealthEnabled == nil {
+		return true
+	}
+	return *s.cfg.Runtime.AccountHealthEnabled
+}
+
+func (s *Store) AccountHealthRecoveryWindowSeconds() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.cfg.Runtime.AccountHealthRecoveryWindowSeconds
+}
+
+func (s *Store) AccountHealthMaxCooldownSeconds() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.cfg.Runtime.AccountHealthMaxCooldownSeconds
+}
+
+func (s *Store) AccountHealthCooldown429Seconds() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.cfg.Runtime.AccountHealthCooldown429Seconds
+}
+
+func (s *Store) AccountHealthCooldown403Seconds() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.cfg.Runtime.AccountHealthCooldown403Seconds
+}
+
+func (s *Store) AccountHealthCooldownAuthSeconds() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.cfg.Runtime.AccountHealthCooldownAuthSeconds
+}
+
+func (s *Store) AccountHealthCooldown5xxSeconds() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.cfg.Runtime.AccountHealthCooldown5xxSeconds
+}
+
+func (s *Store) AccountHealthCooldownNetworkSeconds() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.cfg.Runtime.AccountHealthCooldownNetworkSeconds
+}
+
+// AccountHealthCooldownEmptySeconds intentionally allows 0 (= no cooldown
+// for empty-output, weight-only penalty). Negative values fall back to the
+// default through the LoadHealthConfigFromStore path.
+func (s *Store) AccountHealthCooldownEmptySeconds() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.cfg.Runtime.AccountHealthCooldownEmptySeconds
+}
+
 func (s *Store) AutoDeleteSessions() bool {
 	return s.AutoDeleteMode() != "none"
 }
