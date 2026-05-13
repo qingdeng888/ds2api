@@ -75,6 +75,66 @@ func parseSettingsUpdateRequest(req map[string]any) (*config.AdminConfig, *confi
 			}
 			cfg.TokenRefreshIntervalHours = n
 		}
+		if v, exists := raw["account_health_enabled"]; exists {
+			b := boolFrom(v)
+			cfg.AccountHealthEnabled = &b
+		}
+		if v, exists := raw["account_health_recovery_window_seconds"]; exists {
+			n := intFrom(v)
+			if err := config.ValidateIntRange("runtime.account_health_recovery_window_seconds", n, 1, 86400, true); err != nil {
+				return nil, nil, nil, nil, nil, nil, nil, nil, err
+			}
+			cfg.AccountHealthRecoveryWindowSeconds = n
+		}
+		if v, exists := raw["account_health_max_cooldown_seconds"]; exists {
+			n := intFrom(v)
+			if err := config.ValidateIntRange("runtime.account_health_max_cooldown_seconds", n, 1, 86400, true); err != nil {
+				return nil, nil, nil, nil, nil, nil, nil, nil, err
+			}
+			cfg.AccountHealthMaxCooldownSeconds = n
+		}
+		if v, exists := raw["account_health_cooldown_429_seconds"]; exists {
+			n := intFrom(v)
+			if err := config.ValidateIntRange("runtime.account_health_cooldown_429_seconds", n, 1, 86400, true); err != nil {
+				return nil, nil, nil, nil, nil, nil, nil, nil, err
+			}
+			cfg.AccountHealthCooldown429Seconds = n
+		}
+		if v, exists := raw["account_health_cooldown_403_seconds"]; exists {
+			n := intFrom(v)
+			if err := config.ValidateIntRange("runtime.account_health_cooldown_403_seconds", n, 1, 86400, true); err != nil {
+				return nil, nil, nil, nil, nil, nil, nil, nil, err
+			}
+			cfg.AccountHealthCooldown403Seconds = n
+		}
+		if v, exists := raw["account_health_cooldown_auth_seconds"]; exists {
+			n := intFrom(v)
+			if err := config.ValidateIntRange("runtime.account_health_cooldown_auth_seconds", n, 1, 86400, true); err != nil {
+				return nil, nil, nil, nil, nil, nil, nil, nil, err
+			}
+			cfg.AccountHealthCooldownAuthSeconds = n
+		}
+		if v, exists := raw["account_health_cooldown_5xx_seconds"]; exists {
+			n := intFrom(v)
+			if err := config.ValidateIntRange("runtime.account_health_cooldown_5xx_seconds", n, 1, 86400, true); err != nil {
+				return nil, nil, nil, nil, nil, nil, nil, nil, err
+			}
+			cfg.AccountHealthCooldown5xxSeconds = n
+		}
+		if v, exists := raw["account_health_cooldown_network_seconds"]; exists {
+			n := intFrom(v)
+			if err := config.ValidateIntRange("runtime.account_health_cooldown_network_seconds", n, 1, 86400, true); err != nil {
+				return nil, nil, nil, nil, nil, nil, nil, nil, err
+			}
+			cfg.AccountHealthCooldownNetworkSeconds = n
+		}
+		if v, exists := raw["account_health_cooldown_empty_seconds"]; exists {
+			n := intFrom(v)
+			if err := config.ValidateIntRange("runtime.account_health_cooldown_empty_seconds", n, 0, 86400, true); err != nil {
+				return nil, nil, nil, nil, nil, nil, nil, nil, err
+			}
+			cfg.AccountHealthCooldownEmptySeconds = n
+		}
 		if cfg.AccountMaxInflight > 0 && cfg.GlobalMaxInflight > 0 && cfg.GlobalMaxInflight < cfg.AccountMaxInflight {
 			return nil, nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("runtime.global_max_inflight must be >= runtime.account_max_inflight")
 		}

@@ -32,6 +32,13 @@ type RequestAuth struct {
 	Account        config.Account
 	TriedAccounts  map[string]bool
 	resolver       *Resolver
+
+	// Penalized is set whenever any penalty has been recorded against this
+	// auth's lifecycle. Resolver.Release inspects it to decide whether to
+	// emit a RecordSuccess signal: an attempt that ended with a 429/auth
+	// failure is *not* a healthy success even if the final HTTP response
+	// happened to be 200 (e.g. after switching accounts).
+	Penalized bool
 }
 
 type LoginFunc func(ctx context.Context, acc config.Account) (string, error)
@@ -168,6 +175,11 @@ func (r *Resolver) RefreshToken(ctx context.Context, a *RequestAuth) bool {
 	a.Account.Token = ""
 	if err := r.loginAndPersist(ctx, a); err != nil {
 		config.Logger.Error("[refresh_token] failed", "account", a.AccountID, "error", err)
+		// Re-login failure is the strongest health signal we have: the
+		// account is currently unable to serve traffic. Apply the AuthFailed
+		// cooldown so the scheduler stops sending requests to it for a
+		// while instead of blindly retrying every time.
+		r.penalize(a, account.PenaltyAuthFailed)
 		return false
 	}
 	return true
@@ -184,16 +196,34 @@ func (r *Resolver) MarkTokenInvalid(a *RequestAuth) {
 }
 
 func (r *Resolver) SwitchAccount(ctx context.Context, a *RequestAuth) bool {
+	return r.SwitchAccountWithPenalty(ctx, a, account.PenaltyUnknown)
+}
+
+// SwitchAccountWithPenalty rotates to the next eligible account and records
+// the supplied penalty kind against the outgoing one. Callers that have a
+// concrete diagnosis (HTTP 429, 5xx, auth failure, etc.) should use this
+// entry point so the scheduler can apply the correct cooldown. Passing
+// PenaltyUnknown preserves the legacy "rotate but do not demote" behaviour
+// used by callers that have not yet been classified.
+func (r *Resolver) SwitchAccountWithPenalty(ctx context.Context, a *RequestAuth, kind account.PenaltyKind) bool {
 	if !a.UseConfigToken {
 		return false
 	}
 	if strings.TrimSpace(a.TargetAccount) != "" {
+		// Pinned target: refuse to silently rotate, but do still record the
+		// penalty so /admin/queue/status reflects reality.
+		if a.AccountID != "" && kind != account.PenaltyUnknown {
+			r.penalize(a, kind)
+		}
 		return false
 	}
 	if a.TriedAccounts == nil {
 		a.TriedAccounts = map[string]bool{}
 	}
 	if a.AccountID != "" {
+		if kind != account.PenaltyUnknown {
+			r.penalize(a, kind)
+		}
 		a.TriedAccounts[a.AccountID] = true
 		r.Pool.Release(a.AccountID)
 	}
@@ -205,6 +235,9 @@ func (r *Resolver) SwitchAccount(ctx context.Context, a *RequestAuth) bool {
 		a.Account = acc
 		a.AccountID = acc.Identifier()
 		if err := r.ensureManagedToken(ctx, a); err != nil {
+			// Login failure on the *replacement* account also counts: it is
+			// the same kind of "this account cannot serve right now" signal.
+			r.penalize(a, account.PenaltyAuthFailed)
 			a.TriedAccounts[a.AccountID] = true
 			r.Pool.Release(a.AccountID)
 			continue
@@ -220,11 +253,46 @@ func (a *RequestAuth) SwitchAccount(ctx context.Context) bool {
 	return a.resolver.SwitchAccount(ctx, a)
 }
 
+// SwitchAccountWithPenalty is the classified counterpart of SwitchAccount
+// for use from completionruntime where the caller knows the failure kind.
+func (a *RequestAuth) SwitchAccountWithPenalty(ctx context.Context, kind account.PenaltyKind) bool {
+	if a == nil || a.resolver == nil {
+		return false
+	}
+	return a.resolver.SwitchAccountWithPenalty(ctx, a, kind)
+}
+
 func (r *Resolver) Release(a *RequestAuth) {
 	if a == nil || !a.UseConfigToken || a.AccountID == "" {
 		return
 	}
+	// A clean release with no penalties recorded is a positive health
+	// signal: the in-flight request reached a successful completion (the
+	// caller deferred Release() and we got here without anybody flipping
+	// Penalized). Surface it to the pool so cooldowns can clear and the
+	// failure-count streak resets.
+	if !a.Penalized {
+		r.Pool.RecordSuccess(a.AccountID)
+	}
 	r.Pool.Release(a.AccountID)
+}
+
+// penalize is the central flagging point: it both records the penalty
+// against the pool and marks the auth so a downstream Release() does not
+// erroneously emit a "success" signal for the same lifecycle.
+func (r *Resolver) penalize(a *RequestAuth, kind account.PenaltyKind) {
+	if a == nil || a.AccountID == "" || kind == account.PenaltyUnknown {
+		return
+	}
+	r.Pool.Penalize(a.AccountID, kind)
+	a.Penalized = true
+}
+
+// Penalize is the public wrapper used by callers that want to record a
+// failure without rotating accounts (e.g. a HTTP 429 returned to the
+// client when no alternate is available).
+func (r *Resolver) Penalize(a *RequestAuth, kind account.PenaltyKind) {
+	r.penalize(a, kind)
 }
 
 func extractCallerToken(req *http.Request) string {
